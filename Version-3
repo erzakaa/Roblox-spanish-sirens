@@ -1,0 +1,246 @@
+--[[
+Car Panel with Spanish-style sirens (Roblox LocalScript)
+How to use:
+1) Put this in a LocalScript (StarterPlayerScripts or StarterGui).
+2) Sit in a vehicle seat.
+3) Use the panel buttons to toggle lights/sirens and adjust speed.
+--]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SpanishCarPanel"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.new(0, 300, 0, 260)
+panel.Position = UDim2.new(0, 20, 1, -280)
+panel.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
+panel.BorderSizePixel = 0
+panel.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -16, 0, 34)
+title.Position = UDim2.new(0, 8, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "Panel de Coche (Sirenas Españolas)"
+title.TextColor3 = Color3.fromRGB(240, 240, 240)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.Parent = panel
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -16, 0, 24)
+status.Position = UDim2.new(0, 8, 0, 44)
+status.BackgroundTransparency = 1
+status.Text = "Estado: Sin vehículo"
+status.TextColor3 = Color3.fromRGB(170, 180, 195)
+status.Font = Enum.Font.Gotham
+status.TextSize = 13
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.Parent = panel
+
+local function makeButton(name, text, y)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(1, -16, 0, 34)
+    button.Position = UDim2.new(0, 8, 0, y)
+    button.BackgroundColor3 = Color3.fromRGB(32, 39, 52)
+    button.TextColor3 = Color3.fromRGB(245, 245, 245)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 14
+    button.Text = text
+    button.Parent = panel
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 8)
+    c.Parent = button
+
+    return button
+end
+
+local sirenButton = makeButton("SirenButton", "Sirena: OFF", 76)
+local lightButton = makeButton("LightButton", "Luces de emergencia: OFF", 116)
+local fasterButton = makeButton("FasterButton", "+ Velocidad", 156)
+local slowerButton = makeButton("SlowerButton", "- Velocidad", 196)
+local closeButton = makeButton("CloseButton", "Cerrar", 236)
+closeButton.Size = UDim2.new(0.4, -12, 0, 24)
+closeButton.Position = UDim2.new(0.6, 4, 0, 8)
+closeButton.TextSize = 12
+
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.new(0, 110, 0, 30)
+openButton.Position = UDim2.new(0, 20, 1, -38)
+openButton.Text = "Abrir Panel"
+openButton.Font = Enum.Font.GothamSemibold
+openButton.TextSize = 13
+openButton.BackgroundColor3 = Color3.fromRGB(20, 130, 95)
+openButton.TextColor3 = Color3.new(1, 1, 1)
+openButton.Visible = false
+openButton.Parent = gui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 8)
+openCorner.Parent = openButton
+
+local currentSeat = nil
+local sirenSound = nil
+local sirenOn = false
+local lightsOn = false
+local blinkAccumulator = 0
+local speedBoost = 0
+
+-- Public Roblox siren audio IDs (you can replace with your preferred Spanish siren sounds)
+local spanishSirens = {
+    "rbxassetid://9118823105", -- Police-like yelp
+    "rbxassetid://138186576",  -- Emergency wail
+    "rbxassetid://1843524015"  -- Ambulance-style tone
+}
+
+local function getCharacterSeat()
+    local character = player.Character
+    if not character then
+        return nil
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        return nil
+    end
+
+    if humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
+        return humanoid.SeatPart
+    end
+
+    return nil
+end
+
+local function ensureSirenOnSeat(seat)
+    if not seat then
+        return nil
+    end
+
+    local sound = seat:FindFirstChild("SpanishSiren")
+    if not sound then
+        sound = Instance.new("Sound")
+        sound.Name = "SpanishSiren"
+        sound.Looped = true
+        sound.Volume = 1
+        sound.RollOffMaxDistance = 150
+        sound.SoundId = spanishSirens[1]
+        sound.Parent = seat
+    end
+
+    return sound
+end
+
+local function setStatus(text)
+    status.Text = "Estado: " .. text
+end
+
+sirenButton.MouseButton1Click:Connect(function()
+    currentSeat = getCharacterSeat()
+    if not currentSeat then
+        setStatus("Debes sentarte en un coche")
+        return
+    end
+
+    sirenSound = ensureSirenOnSeat(currentSeat)
+    if not sirenSound then
+        setStatus("No se pudo crear la sirena")
+        return
+    end
+
+    sirenOn = not sirenOn
+    if sirenOn then
+        local randomIndex = math.random(1, #spanishSirens)
+        sirenSound.SoundId = spanishSirens[randomIndex]
+        sirenSound:Play()
+        sirenButton.Text = "Sirena: ON"
+        setStatus("Sirena activada")
+    else
+        sirenSound:Stop()
+        sirenButton.Text = "Sirena: OFF"
+        setStatus("Sirena desactivada")
+    end
+end)
+
+lightButton.MouseButton1Click:Connect(function()
+    currentSeat = getCharacterSeat()
+    if not currentSeat then
+        setStatus("Debes sentarte en un coche")
+        return
+    end
+
+    lightsOn = not lightsOn
+    lightButton.Text = lightsOn and "Luces de emergencia: ON" or "Luces de emergencia: OFF"
+    setStatus(lightsOn and "Luces de emergencia activadas" or "Luces de emergencia desactivadas")
+end)
+
+fasterButton.MouseButton1Click:Connect(function()
+    currentSeat = getCharacterSeat()
+    if not currentSeat then
+        setStatus("Debes sentarte en un coche")
+        return
+    end
+
+    speedBoost = math.clamp(speedBoost + 8, 0, 80)
+    currentSeat.MaxSpeed = 25 + speedBoost
+    setStatus("Velocidad: " .. tostring(currentSeat.MaxSpeed))
+end)
+
+slowerButton.MouseButton1Click:Connect(function()
+    currentSeat = getCharacterSeat()
+    if not currentSeat then
+        setStatus("Debes sentarte en un coche")
+        return
+    end
+
+    speedBoost = math.clamp(speedBoost - 8, 0, 80)
+    currentSeat.MaxSpeed = 25 + speedBoost
+    setStatus("Velocidad: " .. tostring(currentSeat.MaxSpeed))
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    panel.Visible = false
+    openButton.Visible = true
+end)
+
+openButton.MouseButton1Click:Connect(function()
+    panel.Visible = true
+    openButton.Visible = false
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+    currentSeat = getCharacterSeat()
+
+    if not currentSeat then
+        if sirenOn and sirenSound then
+            sirenSound:Stop()
+        end
+        sirenOn = false
+        lightsOn = false
+        sirenButton.Text = "Sirena: OFF"
+        lightButton.Text = "Luces de emergencia: OFF"
+        return
+    end
+
+    if lightsOn then
+        blinkAccumulator += dt
+        local blink = math.floor(blinkAccumulator * 8) % 2 == 0
+        currentSeat.Color = blink and Color3.fromRGB(0, 90, 255) or Color3.fromRGB(255, 204, 0)
+    end
+end)
+
+setStatus("Listo")
