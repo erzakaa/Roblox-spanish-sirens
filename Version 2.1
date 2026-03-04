@@ -1,0 +1,172 @@
+--[[
+  Car Control Panel for Roblox with Spanish-style sirens.
+  Place this LocalScript in StarterPlayerScripts or StarterGui.
+
+  Requirements:
+  - A car model in Workspace with sounds named:
+      SirenPolicia, SirenGuardiaCivil, SirenSAMUR, SirenHorn
+    (or update SOUND_PATHS below to match your setup)
+]]
+
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local SOUND_PATHS = {
+	Policia = "Workspace.Car.SirenPolicia",
+	GuardiaCivil = "Workspace.Car.SirenGuardiaCivil",
+	SAMUR = "Workspace.Car.SirenSAMUR",
+	Horn = "Workspace.Car.SirenHorn",
+}
+
+local activeSound = nil
+
+local function getSound(path)
+	local current = game
+	for part in string.gmatch(path, "[^%.]+") do
+		current = current:FindFirstChild(part)
+		if not current then
+			warn("No se encontró el objeto en la ruta:", path)
+			return nil
+		end
+	end
+
+	if current:IsA("Sound") then
+		return current
+	end
+
+	warn("El objeto no es un Sound:", path)
+	return nil
+end
+
+local function stopActiveSiren()
+	if activeSound and activeSound.IsPlaying then
+		activeSound:Stop()
+	end
+	activeSound = nil
+end
+
+local function playSiren(key)
+	local soundPath = SOUND_PATHS[key]
+	if not soundPath then
+		warn("Sirena no configurada:", key)
+		return
+	end
+
+	local sound = getSound(soundPath)
+	if not sound then
+		return
+	end
+
+	if activeSound == sound and sound.IsPlaying then
+		sound:Stop()
+		activeSound = nil
+		return
+	end
+
+	stopActiveSiren()
+	sound.Looped = true
+	sound:Play()
+	activeSound = sound
+end
+
+local function playHorn()
+	local horn = getSound(SOUND_PATHS.Horn)
+	if not horn then
+		return
+	end
+
+	horn.Looped = false
+	horn:Play()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CarControlPanel"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.new(0, 260, 0, 240)
+panel.Position = UDim2.new(0, 20, 1, -260)
+panel.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+panel.BorderSizePixel = 0
+panel.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -16, 0, 36)
+title.Position = UDim2.new(0, 8, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "Panel de Vehículo"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = panel
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, -16, 0, 22)
+subtitle.Position = UDim2.new(0, 8, 0, 44)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "Sirenas españolas"
+subtitle.TextColor3 = Color3.fromRGB(165, 180, 255)
+subtitle.TextScaled = true
+subtitle.Font = Enum.Font.Gotham
+subtitle.Parent = panel
+
+local list = Instance.new("UIListLayout")
+list.Padding = UDim.new(0, 8)
+list.FillDirection = Enum.FillDirection.Vertical
+list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+list.VerticalAlignment = Enum.VerticalAlignment.Top
+
+local buttonsHolder = Instance.new("Frame")
+buttonsHolder.BackgroundTransparency = 1
+buttonsHolder.Position = UDim2.new(0, 12, 0, 76)
+buttonsHolder.Size = UDim2.new(1, -24, 1, -88)
+buttonsHolder.Parent = panel
+list.Parent = buttonsHolder
+
+local function createButton(text, color)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 32)
+	button.BackgroundColor3 = color
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Font = Enum.Font.GothamSemibold
+	button.TextScaled = true
+	button.Text = text
+	button.AutoButtonColor = true
+	button.Parent = buttonsHolder
+
+	local buttonCorner = Instance.new("UICorner")
+	buttonCorner.CornerRadius = UDim.new(0, 8)
+	buttonCorner.Parent = button
+
+	return button
+end
+
+local policiaButton = createButton("Policía Nacional", Color3.fromRGB(30, 100, 220))
+local guardiaButton = createButton("Guardia Civil", Color3.fromRGB(30, 140, 70))
+local samurButton = createButton("SAMUR", Color3.fromRGB(230, 160, 40))
+local hornButton = createButton("Claxon", Color3.fromRGB(120, 60, 170))
+local stopButton = createButton("Apagar sirena", Color3.fromRGB(190, 45, 45))
+
+policiaButton.MouseButton1Click:Connect(function()
+	playSiren("Policia")
+end)
+
+guardiaButton.MouseButton1Click:Connect(function()
+	playSiren("GuardiaCivil")
+end)
+
+samurButton.MouseButton1Click:Connect(function()
+	playSiren("SAMUR")
+end)
+
+hornButton.MouseButton1Click:Connect(playHorn)
+
+stopButton.MouseButton1Click:Connect(stopActiveSiren)
