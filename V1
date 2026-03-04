@@ -1,0 +1,284 @@
+--[[
+  Car Control Panel + Spanish-style Sirens (Roblox)
+  --------------------------------------------------
+  Drop this into a LocalScript (StarterPlayerScripts) or run via executor.
+
+  Features:
+  - Draggable panel
+  - Spawn basic drivable car model
+  - Toggle lights
+  - Start/stop siren
+  - Cycle through siren tones (Policia, Guardia Civil, Emergencias)
+
+  Notes:
+  - Sound IDs are configurable below. Replace with IDs you prefer.
+  - If your place already has a car system, you can reuse only the UI + siren logic.
+]]
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- Replace with your preferred siren assets.
+local SIREN_LIBRARY = {
+    {
+        name = "Policia Nacional",
+        soundId = "rbxassetid://9118828566",
+        playbackSpeed = 1,
+        volume = 0.9,
+    },
+    {
+        name = "Guardia Civil",
+        soundId = "rbxassetid://1843529274",
+        playbackSpeed = 1,
+        volume = 0.85,
+    },
+    {
+        name = "Emergencias",
+        soundId = "rbxassetid://6026984224",
+        playbackSpeed = 1,
+        volume = 0.85,
+    },
+}
+
+local ui = Instance.new("ScreenGui")
+ui.Name = "CarPanelSpanishSirens"
+ui.ResetOnSpawn = false
+ui.Parent = playerGui
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.fromOffset(360, 260)
+panel.Position = UDim2.new(0.03, 0, 0.35, 0)
+panel.BackgroundColor3 = Color3.fromRGB(20, 24, 31)
+panel.BorderSizePixel = 0
+panel.Parent = ui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = panel
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(72, 114, 255)
+stroke.Thickness = 1.2
+stroke.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 42)
+title.Position = UDim2.fromOffset(10, 8)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.Text = "Panel de Coche | Sirenas Españolas"
+title.TextColor3 = Color3.fromRGB(235, 240, 255)
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = panel
+
+local sirenNameLabel = Instance.new("TextLabel")
+sirenNameLabel.Size = UDim2.new(1, -20, 0, 24)
+sirenNameLabel.Position = UDim2.fromOffset(10, 48)
+sirenNameLabel.BackgroundTransparency = 1
+sirenNameLabel.Font = Enum.Font.Gotham
+sirenNameLabel.Text = "Sirena actual: " .. SIREN_LIBRARY[1].name
+sirenNameLabel.TextColor3 = Color3.fromRGB(180, 191, 217)
+sirenNameLabel.TextSize = 14
+sirenNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+sirenNameLabel.Parent = panel
+
+local function makeButton(text, position, size)
+    local button = Instance.new("TextButton")
+    button.Size = size
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(33, 39, 52)
+    button.TextColor3 = Color3.fromRGB(232, 236, 247)
+    button.BorderSizePixel = 0
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 14
+    button.Text = text
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 8)
+    c.Parent = button
+
+    button.Parent = panel
+    return button
+end
+
+local spawnCarButton = makeButton("Spawn Coche", UDim2.fromOffset(10, 84), UDim2.fromOffset(165, 42))
+local lightsButton = makeButton("Luces: OFF", UDim2.fromOffset(185, 84), UDim2.fromOffset(165, 42))
+local sirenToggleButton = makeButton("Sirena: OFF", UDim2.fromOffset(10, 136), UDim2.fromOffset(165, 42))
+local nextToneButton = makeButton("Cambiar Tono", UDim2.fromOffset(185, 136), UDim2.fromOffset(165, 42))
+local closeButton = makeButton("Cerrar", UDim2.fromOffset(10, 188), UDim2.fromOffset(340, 42))
+
+-- Simple drag logic
+local dragging = false
+local dragStart, startPos
+
+panel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        panel.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local currentCar
+local currentSirenSound
+local currentToneIndex = 1
+local lightsOn = false
+local sirenOn = false
+
+local function createVehicle()
+    if currentCar and currentCar.Parent then
+        currentCar:Destroy()
+    end
+
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return nil
+    end
+
+    local model = Instance.new("Model")
+    model.Name = localPlayer.Name .. "_PatrolCar"
+
+    local body = Instance.new("Part")
+    body.Name = "Body"
+    body.Size = Vector3.new(8, 1.5, 14)
+    body.Color = Color3.fromRGB(22, 28, 44)
+    body.Material = Enum.Material.Metal
+    body.TopSurface = Enum.SurfaceType.Smooth
+    body.BottomSurface = Enum.SurfaceType.Smooth
+    body.Parent = model
+
+    local seat = Instance.new("VehicleSeat")
+    seat.Name = "DriverSeat"
+    seat.Size = Vector3.new(2, 1, 2)
+    seat.Position = body.Position + Vector3.new(0, 1.5, 0)
+    seat.Parent = model
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = body
+    weld.Part1 = seat
+    weld.Parent = body
+
+    local lightbar = Instance.new("Part")
+    lightbar.Name = "LightBar"
+    lightbar.Size = Vector3.new(4, 0.5, 1)
+    lightbar.Color = Color3.fromRGB(16, 18, 24)
+    lightbar.Material = Enum.Material.Neon
+    lightbar.Parent = model
+
+    local weld2 = Instance.new("WeldConstraint")
+    weld2.Part0 = body
+    weld2.Part1 = lightbar
+    weld2.Parent = body
+
+    lightbar.CFrame = body.CFrame * CFrame.new(0, 1.25, -2)
+
+    local siren = Instance.new("Sound")
+    siren.Name = "SirenSound"
+    siren.Looped = true
+    siren.RollOffMaxDistance = 150
+    siren.Parent = body
+
+    model.PrimaryPart = body
+    model:PivotTo(hrp.CFrame * CFrame.new(0, 0, -18))
+    model.Parent = workspace
+
+    return model
+end
+
+local function applyTone()
+    if not currentCar then return end
+    local body = currentCar:FindFirstChild("Body")
+    if not body then return end
+
+    if not currentSirenSound or currentSirenSound.Parent ~= body then
+        currentSirenSound = body:FindFirstChild("SirenSound")
+    end
+
+    if not currentSirenSound then return end
+    local tone = SIREN_LIBRARY[currentToneIndex]
+
+    currentSirenSound.SoundId = tone.soundId
+    currentSirenSound.PlaybackSpeed = tone.playbackSpeed
+    currentSirenSound.Volume = tone.volume
+    sirenNameLabel.Text = "Sirena actual: " .. tone.name
+
+    if sirenOn and not currentSirenSound.IsPlaying then
+        currentSirenSound:Play()
+    end
+end
+
+local function setLights(state)
+    lightsOn = state
+    lightsButton.Text = lightsOn and "Luces: ON" or "Luces: OFF"
+
+    if not currentCar then return end
+    local lightbar = currentCar:FindFirstChild("LightBar")
+    if not lightbar then return end
+
+    local targetColor = lightsOn and Color3.fromRGB(59, 134, 255) or Color3.fromRGB(16, 18, 24)
+    local tween = TweenService:Create(lightbar, TweenInfo.new(0.2), {Color = targetColor})
+    tween:Play()
+end
+
+local function setSiren(state)
+    sirenOn = state
+    sirenToggleButton.Text = sirenOn and "Sirena: ON" or "Sirena: OFF"
+
+    if not currentSirenSound then return end
+    if sirenOn then
+        currentSirenSound:Play()
+    else
+        currentSirenSound:Stop()
+    end
+end
+
+spawnCarButton.MouseButton1Click:Connect(function()
+    currentCar = createVehicle()
+    currentSirenSound = nil
+    applyTone()
+    setLights(false)
+    setSiren(false)
+end)
+
+lightsButton.MouseButton1Click:Connect(function()
+    setLights(not lightsOn)
+end)
+
+sirenToggleButton.MouseButton1Click:Connect(function()
+    setSiren(not sirenOn)
+end)
+
+nextToneButton.MouseButton1Click:Connect(function()
+    currentToneIndex += 1
+    if currentToneIndex > #SIREN_LIBRARY then
+        currentToneIndex = 1
+    end
+    applyTone()
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    ui:Destroy()
+end)
