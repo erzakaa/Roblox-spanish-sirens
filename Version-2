@@ -1,0 +1,89 @@
+--[[
+    CarSirenPanel.client.lua
+    Drop this LocalScript in StarterPlayerScripts.
+
+    Creates a small in-game panel with buttons:
+    - Sirena ESP 1
+    - Sirena ESP 2
+    - Guardia Civil
+    - Detener
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("CarSirenRemote")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CarSirenPanelGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Name = "Panel"
+frame.Size = UDim2.fromOffset(260, 220)
+frame.Position = UDim2.new(0, 20, 1, -240)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(68, 120, 255)
+stroke.Thickness = 1.2
+stroke.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -20, 0, 34)
+title.Position = UDim2.fromOffset(10, 8)
+title.BackgroundTransparency = 1
+title.Text = "Panel de Sirenas (España)"
+title.TextColor3 = Color3.fromRGB(235, 235, 245)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+local list = Instance.new("UIListLayout")
+list.Padding = UDim.new(0, 8)
+list.FillDirection = Enum.FillDirection.Vertical
+list.SortOrder = Enum.SortOrder.LayoutOrder
+
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Name = "Buttons"
+buttonContainer.BackgroundTransparency = 1
+buttonContainer.Size = UDim2.new(1, -20, 1, -56)
+buttonContainer.Position = UDim2.fromOffset(10, 46)
+buttonContainer.Parent = frame
+list.Parent = buttonContainer
+
+local function makeButton(text, accent, order, action)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 0, 34)
+    button.LayoutOrder = order
+    button.BackgroundColor3 = accent
+    button.AutoButtonColor = true
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamSemibold
+    button.Parent = buttonContainer
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 8)
+    c.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        remote:FireServer(action)
+    end)
+end
+
+makeButton("Sirena ESP 1", Color3.fromRGB(46, 111, 255), 1, "ESP_1")
+makeButton("Sirena ESP 2", Color3.fromRGB(25, 142, 99), 2, "ESP_2")
+makeButton("Guardia Civil", Color3.fromRGB(169, 120, 23), 3, "GUARDIA")
+makeButton("Detener", Color3.fromRGB(166, 47, 65), 4, "STOP")
