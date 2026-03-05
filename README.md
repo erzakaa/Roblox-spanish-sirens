@@ -18,3 +18,12 @@
 ## Notes
 - You can replace the `soundId` values in `SIREN_LIBRARY` with your preferred Spanish siren audio IDs.
 - UI text is in Spanish.
+
+## License Copyright
+MIT License
+
+Copyright (c) 2026 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files to deal in the Software
+without restriction...
