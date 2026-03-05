@@ -46,3 +46,10 @@ Copyright (c) 2026
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files to deal in the Software
 without restriction...
+
+## Nuevo: Spawner de coches estilo FiveM
+- Script: `car_spawner_es_fivem.lua`
+- Incluye círculo de spawn en el suelo + menú de selección con `ProximityPrompt`.
+- Genera matrícula española automática (formato `1234 ABC`).
+- Coches incluidos: Toyota RAV4, Opel Corsa, BMW M2 CS, SEAT León Cupra, CUPRA Formentor, Ferrari 488, Lamborghini Huracán y Porsche 911 Turbo S.
+- Tecla rápida: `F7` para abrir/cerrar panel.
